@@ -1,0 +1,490 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Trophy, Award, ArrowRight, RefreshCw, Printer, CheckCircle2, XCircle, Network, ShieldCheck, Volume2, VolumeX, Music, Mic2, Disc } from 'lucide-react';
+
+const App = () => {
+  const [gameState, setGameState] = useState('START'); // START, L1, L2, L3, RESULT
+  const [playerName, setPlayerName] = useState('');
+  const [score, setScore] = useState(0);
+  const [isMuted, setIsMuted] = useState(true);
+
+  // Refs untuk Audio
+  const bgMusicRef = useRef(null);
+  const correctSfxRef = useRef(null);
+  const wrongSfxRef = useRef(null);
+
+  // Mengontrol Musik Latar
+  useEffect(() => {
+    if (bgMusicRef.current) {
+      if (!isMuted && (gameState !== 'START' && gameState !== 'RESULT')) {
+        bgMusicRef.current.play().catch(e => console.log("Audio play blocked by browser. Click unmute to play."));
+      } else {
+        bgMusicRef.current.pause();
+      }
+    }
+  }, [isMuted, gameState]);
+
+  const playSfx = (type) => {
+    if (isMuted) return;
+    if (type === 'correct' && correctSfxRef.current) {
+      correctSfxRef.current.currentTime = 0;
+      correctSfxRef.current.play();
+    } else if (type === 'wrong' && wrongSfxRef.current) {
+      wrongSfxRef.current.currentTime = 0;
+      wrongSfxRef.current.play();
+    }
+  };
+
+  // Data Game
+  const levels = {
+    1: {
+      type: 'DRAG_DROP',
+      title: "Level 1: Konfigurasi Mask",
+      question: "Tentukan nilai oktet terakhir untuk Subnet Mask prefix /26",
+      base: "255.255.255.",
+      target: "192",
+      options: ["128", "192", "224", "240", "248"],
+      points: 30
+    },
+    2: {
+      type: 'MATCHING',
+      title: "Level 2: Kapasitas Jaringan",
+      question: "Pasangkan Prefix (CIDR) dengan jumlah Host valid yang tersedia!",
+      pairs: [
+        { id: 1, left: "/30", right: "2 Host" },
+        { id: 2, left: "/24", right: "254 Host" },
+        { id: 3, left: "/28", right: "14 Host" },
+        { id: 4, left: "/25", right: "126 Host" }
+      ],
+      points: 40
+    },
+    3: {
+      type: 'MCQ',
+      title: "Level 3: Analisis Broadcast",
+      question: "IP 192.168.10.0/27 digunakan. Manakah Alamat Broadcast untuk subnet tersebut?",
+      options: [
+        "192.168.10.31",
+        "192.168.10.32",
+        "192.168.10.255",
+        "192.168.10.30"
+      ],
+      answer: "192.168.10.31",
+      points: 30
+    }
+  };
+
+  const handleStart = (e) => {
+    e.preventDefault();
+    if (playerName.trim()) {
+      setGameState('L1');
+      setIsMuted(false); 
+    }
+  };
+
+  const finishLevel = (pts) => {
+    setScore(prev => prev + pts);
+    if (gameState === 'L1') setGameState('L2');
+    else if (gameState === 'L2') setGameState('L3');
+    else setGameState('RESULT');
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-100 text-slate-900 font-sans p-4 md:p-8 flex items-center justify-center relative overflow-hidden">
+      
+      {/* Background Music & Effects */}
+      <audio 
+        ref={bgMusicRef} 
+        loop 
+        src="https://github.com/muchammadindra/musiksubnet/raw/refs/heads/main/Uplink_Bounce.mp3" 
+      />
+      <audio ref={correctSfxRef} src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-reward-952.mp3" />
+      <audio ref={wrongSfxRef} src="https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-946.mp3" />
+
+      {/* Visualisasi Musik Melayang */}
+      {!isMuted && gameState !== 'START' && gameState !== 'RESULT' && (
+        <div className="absolute inset-0 pointer-events-none">
+          <Music className="absolute top-10 left-10 animate-pulse text-indigo-300 opacity-20" size={120} />
+          <Disc className="absolute bottom-10 right-10 animate-spin-slow text-indigo-400 opacity-20" size={150} />
+          
+          {/* Audio Bars Visualizer Simulation */}
+          <div className="absolute bottom-0 left-0 w-full h-24 flex items-end justify-center gap-1 opacity-10">
+            {[...Array(20)].map((_, i) => (
+              <div 
+                key={i} 
+                className="w-4 bg-indigo-600 rounded-t-lg"
+                style={{ 
+                  height: `${20 + Math.random() * 80}%`,
+                  animation: `equalizer ${0.5 + Math.random()}s ease-in-out infinite alternate`
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-4xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200 z-10">
+        {/* Header Branding MusikTIK */}
+        <div className="bg-indigo-700 p-6 text-white flex justify-between items-center border-b-4 border-indigo-900">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg shadow-lg transition-all ${!isMuted ? 'bg-white rotate-12 scale-110' : 'bg-indigo-300 opacity-50'}`}>
+               <Mic2 className="text-indigo-700" size={24} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black tracking-tight leading-none uppercase">MusikTIK</h1>
+              <p className="text-indigo-200 text-xs font-medium tracking-widest uppercase mt-1 flex items-center gap-1">
+                Uplink Bounce Active <Music size={10} className={!isMuted ? "animate-bounce" : ""} />
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsMuted(!isMuted)} 
+              className={`p-3 rounded-full transition-all border border-indigo-500/30 ${!isMuted ? 'bg-white text-indigo-700 shadow-lg scale-105' : 'bg-indigo-800 text-white'}`}
+              title={isMuted ? "Aktifkan Musik" : "Matikan Musik"}
+            >
+              {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} className="animate-pulse" />}
+            </button>
+            {gameState !== 'START' && gameState !== 'RESULT' && (
+              <div className="bg-indigo-800 px-4 py-2 rounded-xl border border-indigo-500/30">
+                <div className="text-[10px] uppercase font-bold text-indigo-300 tracking-wider leading-none">Skor</div>
+                <div className="text-2xl font-black tracking-tighter tabular-nums leading-none mt-1">{score}</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="p-6 md:p-10 min-h-[500px] flex flex-col justify-center bg-gradient-to-b from-white to-slate-50">
+          {gameState === 'START' && <StartScreen setPlayerName={setPlayerName} handleStart={handleStart} />}
+          {gameState === 'L1' && <Level1 data={levels[1]} onComplete={finishLevel} playSfx={playSfx} />}
+          {gameState === 'L2' && <Level2 data={levels[2]} onComplete={finishLevel} playSfx={playSfx} />}
+          {gameState === 'L3' && <Level3 data={levels[3]} onComplete={finishLevel} playSfx={playSfx} />}
+          {gameState === 'RESULT' && <ResultScreen name={playerName} score={score} reset={() => {setGameState('START'); setScore(0);}} />}
+        </div>
+        
+        <div className="bg-white p-4 text-center border-t border-slate-100 flex items-center justify-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${!isMuted ? 'bg-green-500 animate-ping' : 'bg-slate-300'}`} />
+          <p className="text-slate-400 text-[10px] uppercase tracking-widest font-bold">MusikTIK Jaringan Master • Playing: Uplink Bounce</p>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes equalizer {
+          from { height: 10%; }
+          to { height: 90%; }
+        }
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+          animation: spin-slow 12s linear infinite;
+        }
+        @keyframes shake { 
+          0%, 100% { transform: translateX(0); } 
+          25% { transform: translateX(-8px); } 
+          75% { transform: translateX(8px); } 
+        }
+        .animate-shake { animation: shake 0.2s ease-in-out infinite; }
+      `}</style>
+    </div>
+  );
+};
+
+const StartScreen = ({ setPlayerName, handleStart }) => (
+  <div className="text-center space-y-8 animate-in fade-in zoom-in duration-700">
+    <div className="relative inline-block">
+      <div className="w-24 h-24 bg-indigo-100 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-2 shadow-inner border border-indigo-200">
+        <Network size={48} className="animate-pulse" />
+      </div>
+      <div className="absolute -bottom-2 -right-2 bg-amber-400 text-white p-2 rounded-full shadow-lg border-4 border-white">
+        <Trophy size={20} />
+      </div>
+    </div>
+    
+    <div>
+      <h2 className="text-4xl font-black text-slate-800 tracking-tight">Subnet Master</h2>
+      <p className="text-slate-500 max-w-sm mx-auto mt-2 italic font-serif">"Satu Irama dalam Setiap Alamat Jaringan"</p>
+    </div>
+
+    <form onSubmit={handleStart} className="max-w-xs mx-auto space-y-4 pt-4">
+      <div className="space-y-1 text-left">
+        <label className="text-xs font-bold text-slate-400 uppercase ml-1">Identitas Praktikan</label>
+        <input
+          required
+          autoFocus
+          type="text"
+          placeholder="Nama Lengkap..."
+          className="w-full px-5 py-4 border-2 border-slate-200 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 focus:outline-none transition-all text-lg font-medium"
+          onChange={(e) => setPlayerName(e.target.value)}
+        />
+      </div>
+      <button type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-indigo-700 flex items-center justify-center gap-3 transition-all transform hover:-translate-y-1 active:scale-95 shadow-lg shadow-indigo-200">
+        Mulai Sesi MusikTIK <ArrowRight size={22} />
+      </button>
+    </form>
+  </div>
+);
+
+const Level1 = ({ data, onComplete, playSfx }) => {
+  const [placed, setPlaced] = useState('?');
+  const [status, setStatus] = useState('idle');
+
+  const handlePick = (val) => {
+    setPlaced(val);
+    if (val === data.target) {
+      setStatus('correct');
+      playSfx('correct');
+      setTimeout(() => onComplete(data.points), 1200);
+    } else {
+      setStatus('wrong');
+      playSfx('wrong');
+      setTimeout(() => { setStatus('idle'); setPlaced('?'); }, 1000);
+    }
+  };
+
+  return (
+    <div className="space-y-10 animate-in slide-in-from-bottom-8 duration-500">
+      <div className="text-center space-y-2">
+        <span className="bg-amber-100 text-amber-700 px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest leading-none block w-fit mx-auto">{data.title}</span>
+        <h3 className="text-xl md:text-2xl font-bold text-slate-800">{data.question}</h3>
+      </div>
+
+      <div className="flex justify-center items-center gap-2 text-3xl md:text-5xl font-mono font-black py-16 bg-white rounded-[40px] border-4 border-dashed border-slate-200 relative overflow-hidden shadow-inner">
+        {status === 'correct' && <div className="absolute inset-0 bg-green-500/10 animate-pulse" />}
+        <span className="text-slate-400">{data.base}</span>
+        <div className={`w-28 md:w-36 h-20 md:h-24 rounded-3xl flex items-center justify-center transition-all duration-300 border-4 shadow-xl
+          ${status === 'correct' ? 'bg-green-100 text-green-600 border-green-500 rotate-3 scale-110' : 
+            status === 'wrong' ? 'bg-red-100 text-red-600 border-red-500 animate-shake' : 
+            'bg-slate-50 border-indigo-200 text-indigo-600'}`}>
+          {placed}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap justify-center gap-4">
+        {data.options.map(opt => (
+          <button
+            key={opt}
+            onClick={() => handlePick(opt)}
+            disabled={status !== 'idle'}
+            className="w-20 h-20 md:w-24 md:h-24 bg-white border-2 border-slate-100 rounded-[2rem] font-black text-xl hover:border-indigo-500 hover:text-indigo-600 hover:shadow-lg transition-all active:scale-90 flex items-center justify-center shadow-sm"
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const Level2 = ({ data, onComplete, playSfx }) => {
+  const [selections, setSelections] = useState({ left: null, right: null });
+  const [matches, setMatches] = useState([]); 
+  const [isWrong, setIsWrong] = useState(false);
+
+  const shuffledRight = useMemo(() => [...data.pairs].sort(() => Math.random() - 0.5), []);
+
+  useEffect(() => {
+    if (matches.length === data.pairs.length) {
+      setTimeout(() => onComplete(data.points), 1000);
+    }
+  }, [matches]);
+
+  const handleSelect = (type, item) => {
+    const newSelect = { ...selections, [type]: item };
+    setSelections(newSelect);
+
+    if (newSelect.left && newSelect.right) {
+      if (newSelect.left.id === newSelect.right.id) {
+        setMatches([...matches, newSelect.left.id]);
+        playSfx('correct');
+        setSelections({ left: null, right: null });
+      } else {
+        setIsWrong(true);
+        playSfx('wrong');
+        setTimeout(() => {
+          setSelections({ left: null, right: null });
+          setIsWrong(false);
+        }, 600);
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-in slide-in-from-bottom-8 duration-500">
+      <div className="text-center space-y-2">
+        <span className="bg-blue-100 text-blue-700 px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest leading-none block w-fit mx-auto">{data.title}</span>
+        <h3 className="text-xl font-bold text-slate-800">{data.question}</h3>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 md:gap-10">
+        <div className="space-y-3">
+          {data.pairs.map(pair => (
+            <button
+              key={`L-${pair.id}`}
+              disabled={matches.includes(pair.id)}
+              onClick={() => handleSelect('left', pair)}
+              className={`w-full p-5 rounded-2xl border-2 font-black text-lg transition-all flex items-center justify-between shadow-sm
+                ${matches.includes(pair.id) ? 'bg-slate-100 border-slate-100 text-slate-300' : 
+                  selections.left?.id === pair.id ? 'border-indigo-600 bg-indigo-600 text-white scale-105' : 
+                  'border-slate-100 bg-white hover:border-indigo-300 text-slate-700'}`}
+            >
+              {pair.left}
+              {matches.includes(pair.id) && <CheckCircle2 size={20} />}
+            </button>
+          ))}
+        </div>
+        <div className="space-y-3">
+          {shuffledRight.map(pair => (
+            <button
+              key={`R-${pair.id}`}
+              disabled={matches.includes(pair.id)}
+              onClick={() => handleSelect('right', pair)}
+              className={`w-full p-5 rounded-2xl border-2 font-black text-lg transition-all flex items-center justify-between shadow-sm
+                ${matches.includes(pair.id) ? 'bg-slate-100 border-slate-100 text-slate-300' : 
+                  selections.right?.id === pair.id ? 'border-indigo-600 bg-indigo-600 text-white scale-105' : 
+                  isWrong && selections.right?.id === pair.id ? 'border-red-500 bg-red-50 text-red-600' :
+                  'border-slate-100 bg-white hover:border-indigo-300 text-slate-700'}`}
+            >
+              {pair.right}
+              {matches.includes(pair.id) && <CheckCircle2 size={20} />}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Level3 = ({ data, onComplete, playSfx }) => {
+  const [selected, setSelected] = useState(null);
+  const [status, setStatus] = useState('idle');
+
+  const handleAnswer = (opt) => {
+    setSelected(opt);
+    if (opt === data.answer) {
+      setStatus('correct');
+      playSfx('correct');
+      setTimeout(() => onComplete(data.points), 1500);
+    } else {
+      setStatus('wrong');
+      playSfx('wrong');
+      setTimeout(() => { setStatus('idle'); setSelected(null); }, 1200);
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-in slide-in-from-bottom-8 duration-500">
+      <div className="text-center space-y-2">
+        <span className="bg-purple-100 text-purple-700 px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest leading-none block w-fit mx-auto">{data.title}</span>
+        <h3 className="text-xl font-bold text-slate-800 leading-snug">{data.question}</h3>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        {data.options.map(opt => (
+          <button
+            key={opt}
+            disabled={status !== 'idle'}
+            onClick={() => handleAnswer(opt)}
+            className={`p-6 rounded-3xl border-2 text-left font-bold text-lg transition-all flex justify-between items-center shadow-sm
+              ${selected === opt ? 
+                (status === 'correct' ? 'bg-green-600 border-green-600 text-white shadow-green-200' : 'bg-red-600 border-red-600 text-white shadow-red-200') : 
+                'bg-white border-slate-100 hover:border-purple-300 text-slate-700'}`}
+          >
+            <span className="flex items-center gap-4">
+              <span className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${selected === opt ? 'border-white/50' : 'border-slate-100 bg-slate-50'}`}>
+                 {String.fromCharCode(64 + (data.options.indexOf(opt) + 1))}
+              </span>
+              {opt}
+            </span>
+            {selected === opt && (status === 'correct' ? <CheckCircle2 /> : <XCircle />)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const ResultScreen = ({ name, score, reset }) => {
+  const isMaster = score >= 80;
+
+  return (
+    <div className="text-center space-y-10 py-4 animate-in fade-in zoom-in duration-1000">
+      <div className="space-y-2">
+        <div className="inline-block relative">
+           <Award size={120} className="text-amber-500 mx-auto drop-shadow-xl animate-bounce" />
+           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 mt-1 text-2xl font-black text-amber-800 uppercase italic">
+              {score}
+           </div>
+        </div>
+        <h2 className="text-4xl font-black text-slate-800 tracking-tighter uppercase italic leading-tight">Harmonisasi <br/>Jaringan Selesai!</h2>
+        <p className="text-slate-500">Hebat <b>{name}</b>, kamu telah mencapai nada tertinggi!</p>
+      </div>
+
+      {/* Sertifikat Digital MusikTIK */}
+      <div className="bg-white border-[16px] border-double border-indigo-700 p-2 shadow-2xl rounded-sm max-w-xl mx-auto print:border-indigo-700 print:shadow-none" id="certificate-content">
+        <div className="border border-indigo-200 p-8 space-y-6 relative overflow-hidden bg-slate-50/50">
+            {/* Watermark MusikTIK Background */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.05] pointer-events-none rotate-12">
+                <Music size={400} />
+            </div>
+
+            <div className="space-y-1">
+               <h3 className="text-3xl font-serif font-black text-slate-800 tracking-tight leading-none">CERTIFICATE</h3>
+               <p className="text-indigo-600 font-serif italic tracking-[0.2em] text-sm">OF ACHIEVEMENT</p>
+            </div>
+
+            <div className="w-24 h-1 bg-indigo-700 mx-auto my-4"></div>
+            
+            <p className="text-xs font-serif uppercase tracking-widest text-slate-400">Pemberian Penghargaan Kepada:</p>
+            
+            <h4 className="text-4xl font-serif font-black text-indigo-900 border-b-2 border-slate-200 inline-block px-10 pb-2 mb-2 italic">
+              {name}
+            </h4>
+
+            <p className="text-sm font-serif leading-relaxed px-6 text-slate-600 max-w-md mx-auto">
+              Atas kompetensi luar biasa dalam menyelaraskan alur <br/>
+              <b>Subnetting Jaringan Komputer & Internet</b> <br/>
+              di bawah bimbingan kurikulum terintegrasi MusikTIK.
+            </p>
+
+            <div className="flex justify-around items-end pt-8">
+                <div className="text-center space-y-1">
+                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">Predikat Kelulusan</p>
+                    <p className="font-serif font-black text-indigo-700 uppercase italic text-lg leading-none">
+                       {isMaster ? 'Subnet Maestro' : 'Digital Specialist'}
+                    </p>
+                </div>
+                <div className="text-center space-y-1">
+                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">Skor Verifikasi</p>
+                    <p className="font-serif font-black text-indigo-700 text-lg leading-none">
+                       {score} / 100
+                    </p>
+                </div>
+            </div>
+
+            <div className="pt-8 flex justify-between items-end px-4">
+               <div className="text-left">
+                  <div className="w-24 h-px bg-slate-300 mb-1"></div>
+                  <p className="text-[9px] text-slate-400 font-mono">CODE: MTIK-UP-{Math.floor(Math.random()*9000)+1000}</p>
+               </div>
+               <div className="text-right">
+                  <p className="text-[10px] font-bold text-indigo-900 uppercase tracking-tighter leading-none mb-1">MusikTIK Digital Lab</p>
+                  <p className="text-[8px] text-slate-400 leading-none italic">Sertifikasi Kompetensi Terverifikasi</p>
+               </div>
+            </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-4 justify-center print:hidden">
+        <button onClick={() => window.print()} className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-black transition-all shadow-lg">
+          <Printer size={20} /> Cetak Sertifikat
+        </button>
+        <button onClick={reset} className="bg-indigo-50 text-indigo-600 px-8 py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-indigo-100 transition-all border-2 border-indigo-200">
+          <RefreshCw size={20} /> Mulai Baru
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default App;
